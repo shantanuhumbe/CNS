@@ -1,0 +1,116 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <poll.h>
+#define SIZE 1024;
+char *ip = "127.0.0.1";
+int mksfd(int port)
+{
+    int sfd;
+    struct sockaddr_in server_addr, new_addr;
+    socklen_t addr_size;
+    char buffer[1024];
+    sfd = socket(AF_INET, SOCK_STREAM, 0);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = port;
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+    bind(sfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    listen(sfd, 10);
+    return sfd;
+}
+void *connection_handler(void *socket_desc)
+{
+
+    int sock = *(int *)socket_desc;
+    int n;
+     char buf[]="Accepted";
+    send(sock, buf, sizeof(buf), 0);
+    char client_message[2000];
+    while ((n = recv(sock, client_message, 2000, 0)) > 0)
+    {
+        printf("%s\n", client_message);
+        bzero(client_message, sizeof(client_message));
+        break;
+    }
+    close(sock);
+    return 0;
+}
+int main()
+{
+
+
+    printf("This is Actor\n");
+
+    int actor[10],act_cnt[10];
+    for(int i=0;i<10;i++)
+    {
+        act_cnt[i]=0;
+    }
+     int port = 8080;
+    int e;
+    int sfd, nsfd;
+    struct sockaddr_in new_addr;
+    socklen_t addr_size = sizeof(new_addr);
+    for(int i=0;i<10;i++)
+    {
+        actor[i]= mksfd(port);
+        port++;
+    }
+
+
+
+    struct pollfd pfds[10];
+    for(int i=0;i<10;i++)
+    {
+        pfds[i].fd=actor[i];
+        pfds[i].events=POLLIN;
+
+    }
+
+
+    while(1)
+    {
+        int ret=poll(pfds,10,-1);
+        if(ret==-1)
+        {
+            perror("poll");
+            return -1;
+        }
+       // printf("Hellon\n");
+        for(int i=0;i<10;i++)
+        {
+            if(pfds[i].revents&POLLIN)
+            {
+                int nsfd=accept(pfds[i].fd,(struct sockaddr *)&new_addr,&addr_size);
+                act_cnt[i]++;
+                if(act_cnt[i]>3)
+                {
+                    printf("Cannot accept more requests its already 3 \n"); 
+                     char buf[]="Not_Accepted";
+                     send(nsfd, buf, sizeof(buf), 0);
+                     exit(0);
+                }
+                else
+                {
+                    printf("Actor %d accepted request his/her total request till now are%d\n",i,act_cnt[i]);
+                    pthread_t sniffer_thread;
+                    int *new_sock;
+                     new_sock = malloc(1);
+                    *new_sock = nsfd;
+                    if (pthread_create(&sniffer_thread, NULL, connection_handler, (void *)new_sock) < 0)
+                    {
+                        perror("could not create thread");
+                        // return 1;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+}
