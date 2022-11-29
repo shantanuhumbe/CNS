@@ -1,8 +1,4 @@
-/*
-    Author : Akhil Ravipati
-    Description : A naive and basic implementation of ECC - Diffie Hellman secret key exchange
-    Date: 27-07-2017
-*/
+
 #include <iostream>
 using namespace std;
 
@@ -18,7 +14,7 @@ int n = 240;
 
 int inverseModulo(int num)
 {
-    // naive algorithm
+    
     num = num % p;
     for (int x = 1; x < p; x++)
         if ((num * x) % p == 1)
